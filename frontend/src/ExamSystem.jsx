@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import penSvg from './pen.svg';
 import { signIn, signOutUser, addUser as fbAddUser, removeUser as fbRemoveUser, updateUser as fbUpdateUser, addMessage as fbAddMessage, addExam as fbAddExam, updateExam as fbUpdateExam, removeExam as fbRemoveExam, onUsersChange, onMessagesChange, onExamsChange, seedDataIfEmpty, addSubject as fbAddSubject, removeSubject as fbRemoveSubject, onSubjectsChange, addSubjectExam as fbAddSubjectExam, removeSubjectExam as fbRemoveSubjectExam, onSubjectExamsChange } from "./firebaseService.js";
 
 /* ══════════════════════════════════════════════════════════════
@@ -1511,7 +1512,7 @@ export const initCustomCursor = () => {
   
   const dot = document.createElement('img');
   dot.id = 'cursor-dot';
-  dot.src = '/src/pen.svg';
+  dot.src = penSvg;
   dot.style.cssText = 'width:40px;height:40px;pointer-events:none;';
   
   const ring = document.createElement('div');
