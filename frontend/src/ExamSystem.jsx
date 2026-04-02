@@ -2930,30 +2930,54 @@ export default function App() {
     return () => { const e = document.getElementById('eduai-css'); if (e) e.remove(); };
   }, []);
 
-  // Firebase: seed data + real-time listeners
+  // Firebase: seed data + real-time listeners (Optimized)
   useEffect(() => {
     let unsubUsers, unsubMsgs, unsubExams, unsubSubjects, unsubSubjectExams;
+    let isMounted = true;
 
-    const init = async () => {
+    const initFirebase = async () => {
       try {
-        await seedDataIfEmpty();
-        await fbAddUser({ id: 1, role: 'admin', name: 'Chandru', username: 'chandru', password: 'chandru8428', avatar: 'CH' });
-      } catch (e) {
-        console.error('Seed error:', e);
-      }
+        // Set up listeners IMMEDIATELY (non-blocking)
+        // This ensures real-time UI updates start right away
+        unsubUsers = onUsersChange((data) => {
+          if (isMounted) {
+            setUsers(data);
+            setLoading(false);
+          }
+        });
+        unsubMsgs = onMessagesChange((data) => {
+          if (isMounted) setMessages(data);
+        });
+        unsubExams = onExamsChange((data) => {
+          if (isMounted) setExams(data);
+        });
+        unsubSubjects = onSubjectsChange((data) => {
+          if (isMounted) setSubjects(data);
+        });
+        unsubSubjectExams = onSubjectExamsChange((data) => {
+          if (isMounted) setSubjectExams(data);
+        });
 
-      unsubUsers = onUsersChange((data) => {
-        setUsers(data);
-        setLoading(false);
-      });
-      unsubMsgs = onMessagesChange(setMessages);
-      unsubExams = onExamsChange(setExams);
-      unsubSubjects = onSubjectsChange(setSubjects);
-      unsubSubjectExams = onSubjectExamsChange(setSubjectExams);
+        // Seed data in background (non-blocking)
+        // This happens after listeners are set up
+        setTimeout(async () => {
+          try {
+            await seedDataIfEmpty();
+            await fbAddUser({ id: 1, role: 'admin', name: 'Chandru', username: 'chandru', password: 'chandru8428', avatar: 'CH' });
+          } catch (e) {
+            console.error('Seed error:', e);
+          }
+        }, 0);
+      } catch (e) {
+        console.error('Firebase init error:', e);
+        if (isMounted) setLoading(false);
+      }
     };
 
-    init();
+    initFirebase();
+
     return () => {
+      isMounted = false;
       if (unsubUsers) unsubUsers();
       if (unsubMsgs) unsubMsgs();
       if (unsubExams) unsubExams();
