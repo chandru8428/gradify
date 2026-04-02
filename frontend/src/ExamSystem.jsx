@@ -25,13 +25,20 @@ const pageTransitionCSS = `
 
 // Loading animation styles  
 const loadingCSS = `
-.page-loader{position:fixed;inset:0;z-index:99998;background:rgba(17,17,17,0.9);display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:1;transition:opacity 0.4s ease;}
+.page-loader{position:fixed;inset:0;z-index:99998;background:rgba(17,17,17,0.95);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;opacity:1;transition:opacity 0.4s ease;}
 .page-loader.hidden{opacity:0;pointer-events:none;visibility:hidden;}
-.page-loader-dots{display:flex;gap:10px;}
-.page-loader-dot{width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 0 20px rgba(255,255,255,0.9);animation:loader-bounce 0.7s infinite ease-in-out;}
-.page-loader-dot:nth-child(2){animation-delay:0.1s;}
-.page-loader-dot:nth-child(3){animation-delay:0.2s;}
-@keyframes loader-bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-14px);}}
+.page-loader-container{perspective:1000px;width:100px;height:100px;}
+.page-loader-cube{width:100%;height:100%;position:relative;transform-style:preserve-3d;animation:rotate3d 3s infinite linear;}
+.page-loader-face{position:absolute;width:100px;height:100px;background:linear-gradient(135deg,#F94C24,#D43916);border:2px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:#fff;box-shadow:0 0 24px rgba(249,76,36,0.4);}
+.page-loader-face:nth-child(1){transform:rotateY(0deg) translateZ(50px);}
+.page-loader-face:nth-child(2){transform:rotateY(180deg) translateZ(50px);}
+.page-loader-face:nth-child(3){transform:rotateY(90deg) translateZ(50px);}
+.page-loader-face:nth-child(4){transform:rotateY(-90deg) translateZ(50px);}
+.page-loader-face:nth-child(5){transform:rotateX(90deg) translateZ(50px);}
+.page-loader-face:nth-child(6){transform:rotateX(-90deg) translateZ(50px);}
+.page-loader-text{margin-top:32px;font-size:14px;color:rgba(255,255,255,0.7);font-family:var(--font-b);font-weight:600;letter-spacing:1px;animation:fadeInOut 2s infinite;}
+@keyframes rotate3d{0%{transform:rotateX(0deg) rotateY(0deg) rotateZ(0deg);}100%{transform:rotateX(360deg) rotateY(360deg) rotateZ(360deg);}}
+@keyframes fadeInOut{0%,100%{opacity:0.4;}50%{opacity:1;}}
 `;
 
 // Scroll reveal styles
@@ -1410,13 +1417,20 @@ textarea::placeholder{
 @keyframes page-exit{to{opacity:0;transform:translateY(-8px);}}
 
 /* Loading Animation */
-.page-loader{position:fixed;inset:0;z-index:99998;background:rgba(17,17,17,0.85);display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:1;transition:opacity 0.35s ease;}
+.page-loader{position:fixed;inset:0;z-index:99998;background:rgba(17,17,17,0.95);backdrop-filter:blur(4px);display:flex;flex-direction:column;align-items:center;justify-content:center;pointer-events:none;opacity:1;transition:opacity 0.35s ease;}
 .page-loader.hidden{opacity:0;pointer-events:none;visibility:hidden;}
-.page-loader-dots{display:flex;gap:8px;}
-.page-loader-dot{width:12px;height:12px;border-radius:50%;background:#ffffff;box-shadow:0 0 16px rgba(255,255,255,0.85);animation:loader-bounce 0.6s infinite ease-in-out;}
-.page-loader-dot:nth-child(2){animation-delay:0.1s;}
-.page-loader-dot:nth-child(3){animation-delay:0.2s;}
-@keyframes loader-bounce{0%,100%{transform:translateY(0);}50%{transform:translateY(-12px);}}
+.page-loader-container{perspective:1000px;width:100px;height:100px;}
+.page-loader-cube{width:100%;height:100%;position:relative;transform-style:preserve-3d;animation:rotate3d 3s infinite linear;}
+.page-loader-face{position:absolute;width:100px;height:100px;background:linear-gradient(135deg,#F94C24,#D43916);border:2px solid rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:#fff;box-shadow:0 0 24px rgba(249,76,36,0.4);}
+.page-loader-face:nth-child(1){transform:rotateY(0deg) translateZ(50px);}
+.page-loader-face:nth-child(2){transform:rotateY(180deg) translateZ(50px);}
+.page-loader-face:nth-child(3){transform:rotateY(90deg) translateZ(50px);}
+.page-loader-face:nth-child(4){transform:rotateY(-90deg) translateZ(50px);}
+.page-loader-face:nth-child(5){transform:rotateX(90deg) translateZ(50px);}
+.page-loader-face:nth-child(6){transform:rotateX(-90deg) translateZ(50px);}
+.page-loader-text{margin-top:32px;font-size:14px;color:rgba(255,255,255,0.7);font-family:var(--font-b);font-weight:600;letter-spacing:1px;animation:fadeInOut 2s infinite;}
+@keyframes rotate3d{0%{transform:rotateX(0deg) rotateY(0deg) rotateZ(0deg);}100%{transform:rotateX(360deg) rotateY(360deg) rotateZ(360deg);}}
+@keyframes fadeInOut{0%,100%{opacity:0.4;}50%{opacity:1;}}
 
 /* Scroll Reveal */
 .reveal{opacity:0;transform:translateY(24px);transition:all 0.5s cubic-bezier(0.16, 1, 0.3, 1);}
@@ -1454,7 +1468,19 @@ export const initPageLoader = () => {
     const loader = document.createElement('div');
     loader.id = 'page-loader';
     loader.className = 'page-loader';
-    loader.innerHTML = '<div class="page-loader-dots"><div class="page-loader-dot"></div><div class="page-loader-dot"></div><div class="page-loader-dot"></div></div>';
+    loader.innerHTML = `
+    <div class="page-loader-container">
+      <div class="page-loader-cube">
+        <div class="page-loader-face">F</div>
+        <div class="page-loader-face">B</div>
+        <div class="page-loader-face">L</div>
+        <div class="page-loader-face">R</div>
+        <div class="page-loader-face">T</div>
+        <div class="page-loader-face">Bo</div>
+      </div>
+    </div>
+    <div class="page-loader-text">Connecting Firebase...</div>
+    `;
     document.body.appendChild(loader);
 
     // Hide loader function - use flag to prevent double execution
