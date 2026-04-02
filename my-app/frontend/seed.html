@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Firebase Seeder</title>
+</head>
+<body style="font-family: sans-serif; padding: 40px;">
+  <h1>Firebase Admin Account Seeder</h1>
+  <p>Clicking the button below will map <b>admin</b> to an email (admin@eduai.local), create the account in Firebase Auth, and set their role to Admin in Firestore.</p>
+  
+  <button id="btn" style="padding: 10px 20px; font-size: 16px; background: #0ac; color: #fff; border: none; cursor: pointer;">
+    Seed Admin Account
+  </button>
+  
+  <div id="log" style="margin-top: 20px; font-family: monospace; white-space: pre-wrap; background: #eee; padding: 10px;"></div>
+
+  <!-- Import Map -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+        "firebase/storage": "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js"
+      }
+    }
+  </script>
+  
+  <script type="module">
+    import { signupUser } from './js/auth.js';
+    
+    document.getElementById('btn').onclick = async () => {
+        const log = document.getElementById('log');
+        document.getElementById('btn').disabled = true;
+        
+        try {
+            log.innerText = "Attempting to create seed admin...\n";
+            // Admin default credentials
+            const usr = "admin";
+            const pwd = "password123";
+            const role = "admin";
+            const name = "System Admin";
+            
+            const data = await signupUser(usr, pwd, role, name);
+            
+            log.innerText += `\n✅ SUCCESS!\nAdmin account created.\n\nUsername: ${usr}\nPassword: ${pwd}\n\nYou can now go to index.html and log in using these credentials.`;
+        } catch (e) {
+            log.innerText += `\n❌ ERROR: ${e.message}\nIf it says "email-already-in-use", the admin account already exists and you can just log in at index.html!`;
+        }
+    };
+  </script>
+</body>
+</html>

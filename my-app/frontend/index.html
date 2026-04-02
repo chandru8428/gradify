@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gradify - Premium Education Portal</title>
+  
+  <!-- React 18 CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Firebase Modules -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+        "firebase/storage": "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Main Logic -->
+  <script type="module">
+    import { protectRoute, loginUser } from './js/auth.js';
+    import { injectCSS } from './js/common-components.js';
+
+    const { createElement: e, useState, useEffect } = React;
+
+    // Login Component
+    function Login() {
+      const [usr, setUsr] = useState('');
+      const [pwd, setPwd] = useState('');
+      const [err, setErr] = useState('');
+      const [loading, setLoading] = useState(false);
+
+      const doLogin = async (eEvent) => {
+        eEvent.preventDefault();
+        setErr('');
+        setLoading(true);
+        try {
+          const user = await loginUser(usr, pwd);
+          if (user) {
+            // Page transition effect
+            document.body.classList.add('page-transition-exit');
+            setTimeout(() => {
+              window.location.href = `${user.role}-dashboard.html`;
+            }, 300);
+          } else {
+            setErr('❌ User data not found. Please contact your administrator.');
+            setLoading(false);
+          }
+        } catch (error) {
+          setErr('❌ Invalid credentials. Please try again.');
+          setLoading(false);
+        }
+      };
+
+      return e("div", { className: "login-wrap" }, 
+        e("div", { className: "orbs" }, 
+            e("div", { className: "orb o1" }), e("div", { className: "orb o2" }), 
+            e("div", { className: "orb o3" }), e("div", { className: "orb o4" })
+        ), 
+        e("div", { className: "signin-card" }, 
+            e("div", { className: "login-logo" }, 
+                e("div", null, "🎓"),
+                "GRADIFY"
+            ), 
+            e("div", { className: "login-tag" }, "Premium Learning Portal"),
+            e("div", { style: { textAlign: 'center', marginTop: 24, marginBottom: 28 } }, 
+                e("div", { className: "login-sub" }, "Welcome Back"), 
+                e("div", { className: "login-p" }, "Sign in to access your personalized learning dashboard")
+            ), 
+            err && e("div", { className: "error-banner", style: { marginBottom: 20 } }, err), 
+            e("form", { onSubmit: doLogin }, 
+                e("div", { className: "field" }, 
+                    e("label", { className: "fl" }, "📧 Username"), 
+                    e("input", { className: "glass-input", type: "text", placeholder: "your-username", value: usr, onChange: (ev) => setUsr(ev.target.value), required: true })
+                ), 
+                e("div", { className: "field" }, 
+                    e("label", { className: "fl" }, "🔐 Password"), 
+                    e("input", { className: "glass-input", type: "password", placeholder: "••••••••", value: pwd, onChange: (ev) => setPwd(ev.target.value), required: true })
+                ), 
+                e("button", { className: "signin-btn", type: "submit", disabled: loading }, 
+                    loading ? e(React.Fragment, null, e("span", { className: "spin" }), " Signing In...") : "✨ SIGN IN"
+                )
+            ),
+            e("div", { style: { marginTop: 20, textAlign: 'center', fontSize: 12, color: 'var(--t3)' } },
+                e("p", null, "Premium Design • Glassmorphism UI • Animated Cursor"),
+                e("p", { style: { marginTop: 8, fontSize: 11 } }, "🚀 Next-generation education technology")
+            )
+        )
+      );
+    }
+
+    // App Initialization
+    function App() {
+      useEffect(() => { 
+        injectCSS();
+        // Prevent right-click context menu (optional - remove if not desired)
+        // document.addEventListener('contextmenu', e => e.preventDefault());
+      }, []);
+      return e(Login);
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(e(App));
+  </script>
+</body>
+</html>
+    root.render(e(App));
+  </script>
+</body>
+</html>

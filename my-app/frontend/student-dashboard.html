@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gradify - Student Dashboard</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- React 18 CDN without JSX -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Import Map for Firebase Modules -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js",
+        "firebase/storage": "https://www.gstatic.com/firebasejs/10.8.0/firebase-storage.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="module">
+    import { protectRoute } from './js/auth.js';
+    protectRoute('student');
+
+    import { injectCSS } from './js/common-components.js';
+    import { StudentDash } from './js/dashboards.js';
+    import { db, auth } from './js/firebase-config.js';
+    import { collection, onSnapshot, doc, getDoc } from 'firebase/firestore';
+    import { onAuthStateChanged } from 'firebase/auth';
+
+    const { createElement: e, useState, useEffect } = React;
+
+    function App() {
+      const [appState, setAppState] = useState({ exams: [] });
+      const [user, setUser] = useState(null);
+
+      useEffect(() => {
+        injectCSS();
+        
+        onAuthStateChanged(auth, async u => {
+            if (u) {
+                const ud = await getDoc(doc(db, 'users', u.uid));
+                setUser({ uid: u.uid, name: ud.data()?.name || u.email.split('@')[0], role: 'student' });
+            }
+        });
+
+        const unsubExams = onSnapshot(collection(db, 'submissions'), sn => {
+            setAppState(p => ({ ...p, exams: sn.docs.map(d => ({ id: d.id, ...d.data() })) }));
+        });
+
+        return () => { unsubExams(); };
+      }, []);
+
+      if (!user) return e("div", { style: {color: "white", padding: 20} }, "Loading Student...");
+
+      return e(StudentDash, { currentUser: user, appState });
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(e(App));
+  </script>
+</body>
+</html>

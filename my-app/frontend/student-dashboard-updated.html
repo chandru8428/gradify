@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Dashboard - Gradify</title>
+  
+  <!-- React 18 CDN -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Firebase Modules -->
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- Dashboard Logic -->
+  <script type="module">
+    import { protectRoute, logoutUser } from './js/auth.js';
+    import { injectCSS, Shell, SidebarBrand, AnimatedNumber, Donut } from './js/common-components.js';
+
+    const { createElement: e, useState, useEffect } = React;
+
+    // Mock data for demonstration
+    const mockStats = [
+      { label: 'Total Exams', value: 12, icon: '📝' },
+      { label: 'Avg Score', value: 78, icon: '⭐' },
+      { label: 'Subjects', value: 5, icon: '📚' },
+      { label: 'Grade', value: 'A', icon: '🏆' }
+    ];
+
+    const mockExams = [
+      { id: 1, name: 'Mathematics Final', score: 85, maxScore: 100, date: '2024-03-15' },
+      { id: 2, name: 'English Literature', score: 72, maxScore: 100, date: '2024-03-10' },
+      { id: 3, name: 'Science Practical', score: 91, maxScore: 100, date: '2024-03-05' }
+    ];
+
+    // Student Dashboard Component
+    function StudentDashboard() {
+      const [logoutLoading, setLogoutLoading] = useState(false);
+
+      const handleLogout = async () => {
+        setLogoutLoading(true);
+        try {
+          await logoutUser();
+        } catch (err) {
+          console.error('Logout failed:', err);
+          setLogoutLoading(false);
+        }
+      };
+
+      const sidebar = e("div", null,
+        e(SidebarBrand, { role: 'Student' }),
+        e("div", { className: "sb-user" },
+          e("div", { className: "av", style: { background: 'linear-gradient(135deg, var(--blue), var(--purple))' } }, "JD"),
+          e("div", null,
+            e("div", { className: "sb-uname" }, "John Doe"),
+            e("div", { className: "sb-usub" }, "Grade 12 Science")
+          )
+        ),
+        e("nav", { className: "sb-nav" },
+          e("div", { className: "nav-item on" },
+            e("span", { className: "nav-ic" }, "📊"),
+            "Dashboard"
+          ),
+          e("div", { className: "nav-item" },
+            e("span", { className: "nav-ic" }, "📚"),
+            "My Exams"
+          ),
+          e("div", { className: "nav-item" },
+            e("span", { className: "nav-ic" }, "📈"),
+            "Performance"
+          ),
+          e("div", { className: "nav-item" },
+            e("span", { className: "nav-ic" }, "⚙️"),
+            "Settings"
+          )
+        ),
+        e("div", { className: "sb-foot" },
+          e("button", { className: "logout", onClick: handleLogout, disabled: logoutLoading },
+            logoutLoading ? "Logging out..." : "🚪 Logout"
+          )
+        )
+      );
+
+      return e(Shell, { sidebar: sidebar },
+        e("div", { className: "pad" },
+          // Header
+          e("div", { className: "ph" },
+            e("h2", null, "📊 Welcome Back, John"),
+            e("p", null, "Here's your academic performance summary")
+          ),
+
+          // Stats Grid
+          e("div", { className: "stats" },
+            mockStats.map((stat, i) =>
+              e("div", { key: i, className: "stat" },
+                e("div", { className: "stat-i" }, stat.icon),
+                e("div", { className: "stat-v" }, e(AnimatedNumber, { value: stat.value })),
+                e("div", { className: "stat-l" }, stat.label)
+              )
+            )
+          ),
+
+          // Performance Card
+          e("div", { className: "card" },
+            e("div", { className: "card-h" },
+              e("span", { className: "card-ht" }, "⭐ Performance Overview")
+            ),
+            e("div", { className: "card-b" },
+              e("div", { className: "pie-row" },
+                e(Donut, { value: 85, color: "var(--blue)", label: "Consistency" }),
+                e(Donut, { value: 78, color: "var(--purple)", label: "Recent Tests" }),
+                e(Donut, { value: 72, color: "var(--green)", label: "Homework" })
+              )
+            )
+          ),
+
+          // Recent Exams Table
+          e("div", { className: "card" },
+            e("div", { className: "card-h" },
+              e("span", { className: "card-ht" }, "📋 Recent Examinations")
+            ),
+            e("div", { className: "card-b" },
+              e("table", { className: "tbl" },
+                e("thead", null,
+                  e("tr", null,
+                    e("th", null, "Exam Name"),
+                    e("th", null, "Score"),
+                    e("th", null, "Date"),
+                    e("th", null, "Status")
+                  )
+                ),
+                e("tbody", null,
+                  mockExams.map(exam =>
+                    e("tr", { key: exam.id },
+                      e("td", null, exam.name),
+                      e("td", null, exam.score + "/" + exam.maxScore),
+                      e("td", null, new Date(exam.date).toLocaleDateString()),
+                      e("td", null,
+                        e("span", { className: "badge bg-green" }, "✓ PASSED")
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          ),
+
+          // Upcoming Features Card
+          e("div", { className: "card" },
+            e("div", { className: "card-h" },
+              e("span", { className: "card-ht" }, "🚀 Coming Soon")
+            ),
+            e("div", { className: "card-b" },
+              e("p", { style: { color: 'var(--t2)', lineHeight: '1.6', marginBottom: '12px' } },
+                "✨ Enhanced analytics dashboard"
+              ),
+              e("p", { style: { color: 'var(--t2)', lineHeight: '1.6', marginBottom: '12px' } },
+                "📊 Detailed subject breakdown and weak areas"
+              ),
+              e("p", { style: { color: 'var(--t2)', lineHeight: '1.6' } },
+                "🎯 Personalized study recommendations"
+              ),
+              e("button", { className: "btn btn-blue", style: { marginTop: '16px' } }, "✨ EXPLORE NEW FEATURES")
+            )
+          )
+        )
+      );
+    }
+
+    // App Initialization
+    function App() {
+      useEffect(() => {
+        injectCSS();
+        protectRoute('student');
+      }, []);
+      
+      return e(StudentDashboard);
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(e(App));
+  </script>
+</body>
+</html>
