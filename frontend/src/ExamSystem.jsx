@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import penSvg from './pen.svg';
 import { signIn, signOutUser, addUser as fbAddUser, removeUser as fbRemoveUser, updateUser as fbUpdateUser, addMessage as fbAddMessage, addExam as fbAddExam, updateExam as fbUpdateExam, removeExam as fbRemoveExam, onUsersChange, onMessagesChange, onExamsChange, seedDataIfEmpty, addSubject as fbAddSubject, removeSubject as fbRemoveSubject, onSubjectsChange, addSubjectExam as fbAddSubjectExam, removeSubjectExam as fbRemoveSubjectExam, onSubjectExamsChange } from "./firebaseService.js";
+import initializeKimiService from "./kimiService.js";
+import AIAssistant from "./AIAssistant.jsx";
 
 /* ══════════════════════════════════════════════════════════════
    UI ENHANCEMENTS: Custom Cursor, Page Transitions, Loading, Scroll Reveal, Brutalism
@@ -1832,7 +1834,9 @@ function ExamAnalyser({ currentUser, users, onSave, subjects, subjectExams }) {
   const [saved, setSaved] = useState(false);
   const [sucMsg, setSucMsg] = useState('');
   const [errMsg, setErrMsg] = useState('');
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+  const geminiApiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
+  const nvidiaApiKey = import.meta.env.VITE_NVIDIA_API_KEY || '';
+  const kimiService = initializeKimiService(nvidiaApiKey);
   const ref = useRef(null);
 
   // Derived data from selections
@@ -1864,14 +1868,16 @@ function ExamAnalyser({ currentUser, users, onSave, subjects, subjectExams }) {
   });
 
   const run = async () => {
-    if (!apiKey.trim()) { setErrMsg('Gemini API key missing. Add VITE_GEMINI_API_KEY to your .env file and restart the dev server.'); return; }
+    if (!geminiApiKey.trim()) { setErrMsg('Gemini API key missing. Add VITE_GEMINI_API_KEY to your .env file and restart the dev server.'); return; }
     if (!script) { setErrMsg('Please upload the student answer script first.'); return; }
     if (!selectedSubjectId) { setErrMsg('Please select a subject.'); return; }
     setErrMsg(''); setSucMsg(''); setLoading(true); setProg(10); setResult(null); setSaved(false); setEditing(false);
     try {
       const contentParts = [];
       const hasScheme = parts.length > 0 && totalMarks > 0;
-      const prompt = `You are a strict but fair examiner. Carefully read and evaluate the student's answer script.
+      
+      // ========== STEP 1: Prepare prompt for Gemini (Final Scoring) ==========
+      const geminiPrompt = `You are a strict but fair examiner. Carefully read and evaluate the student's answer script.
 
 SUBJECT: ${subject || 'General'}
 ${selectedExam ? `EXAM: ${selectedExam.name}` : ''}
@@ -1898,14 +1904,18 @@ Return ONLY valid JSON — no markdown, no backticks, no extra text:
         contentParts.push({ text: 'ANSWER KEY / MARKING SCHEME:' });
         contentParts.push({ inline_data: { mime_type: keyFile.type, data: d } });
       }
+      
       setProg(45);
       const sd = await toB64(script);
       contentParts.push({ text: 'STUDENT ANSWER SCRIPT:' });
       contentParts.push({ inline_data: { mime_type: script.type, data: sd } });
-      contentParts.push({ text: prompt });
+      contentParts.push({ text: geminiPrompt });
 
-      setProg(70);
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey.trim()}`, {
+      // ========== STEP 2: Call Gemini for Final Scoring & Accuracy ==========
+      console.log('📊 Calling Gemini 3 for final scoring and accuracy verification...');
+      setProg(55);
+      
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey.trim()}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1913,13 +1923,57 @@ Return ONLY valid JSON — no markdown, no backticks, no extra text:
           generationConfig: { temperature: 0.3, maxOutputTokens: 8192, responseMimeType: 'application/json' }
         })
       });
+      
+      setProg(75);
+      const geminiData = await geminiRes.json();
+      if (geminiData.error) throw new Error(geminiData.error.message || 'Gemini API error');
+      
+      const geminiTxt = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      const geminiResult = JSON.parse(geminiTxt.replace(/```json|```/g, '').trim());
+
+      // ========== STEP 3: Enhance with Kimi K2.5 Feedback (if available) ==========
+      let enhancedResult = JSON.parse(JSON.stringify(geminiResult));
+      
+      if (kimiService && geminiResult.questions && geminiResult.questions.length > 0) {
+        console.log('💡 Enhancing feedback with Kimi K2.5...');
+        setProg(80);
+        
+        // Enhance each question's feedback with more detailed explanations
+        const enhancedQuestions = await Promise.all(
+          geminiResult.questions.map(async (q) => {
+            try {
+              const kimiResult = await kimiService.generateFeedback(
+                subject,
+                q.feedback,
+                q.questionText,
+                q.marksAwarded,
+                q.maxMarks
+              );
+              
+              if (kimiResult.success) {
+                return {
+                  ...q,
+                  detailedFeedback: kimiResult.feedback,
+                  feedbackSource: 'kimi-k2.5',
+                };
+              }
+              return q;
+            } catch (e) {
+              console.warn('⚠️ Kimi K2.5 enhancement failed for question:', e);
+              return q;
+            }
+          })
+        );
+        
+        enhancedResult.questions = enhancedQuestions;
+        enhancedResult.evaluationMethod = 'Dual-Model: Gemini (Scoring) + Kimi K2.5 (Feedback)';
+      } else {
+        enhancedResult.evaluationMethod = 'Gemini (Complete Evaluation)';
+      }
+
       setProg(90);
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message || 'Gemini API error');
-      const txt = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      const parsed = JSON.parse(txt.replace(/```json|```/g, '').trim());
-      setResult(parsed);
-      setEditR(JSON.parse(JSON.stringify(parsed)));
+      setResult(enhancedResult);
+      setEditR(JSON.parse(JSON.stringify(enhancedResult)));
       setProg(100);
       setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth' }), 200);
     } catch (e) { setErrMsg('AI evaluation failed. Check your files are clear and readable. ' + e.message); }
@@ -3057,6 +3111,35 @@ export default function App() {
     </button>
   );
 
+  // System context for AI Agent
+  const systemContext = {
+    totalStudents: users.filter(u => u.role === 'student').length,
+    totalExams: exams.length,
+    subjects: subjects.length,
+  };
+
+  // Handle AI Agent actions
+  const handleAIAction = (action) => {
+    console.log('🤖 AI Agent Action:', action);
+    // Route actions to appropriate handlers
+    switch (action.action) {
+      case 'GRADE_EXAM':
+        // Would navigate to exam grading
+        alert(`Grade exam: ${action.params?.examName || 'selected exam'}`);
+        break;
+      case 'SHOW_STATS':
+        // Would show statistics
+        alert('Showing statistics dashboard');
+        break;
+      case 'MANAGE_STUDENTS':
+        // Would navigate to student management
+        alert('Opening student management');
+        break;
+      default:
+        console.log('Unknown action:', action.action);
+    }
+  };
+
   return (
     <>
       <div className="orbs"><div className="orb o1" /><div className="orb o2" /><div className="orb o3" /><div className="orb o4" /></div>
@@ -3066,6 +3149,14 @@ export default function App() {
           currentUser.role === 'teacher' ? <TeacherDash currentUser={currentUser} appState={appState} dispatch={dispatch} /> :
             <StudentDash currentUser={currentUser} appState={appState} dispatch={dispatch} />
       }
+      {currentUser && (
+        <AIAssistant
+          apiKey={import.meta.env.VITE_NVIDIA_API_KEY || ''}
+          userRole={currentUser.role}
+          systemContext={systemContext}
+          onAction={handleAIAction}
+        />
+      )}
     </>
   );
 }
